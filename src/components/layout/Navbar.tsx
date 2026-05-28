@@ -1,5 +1,5 @@
-import { Link, useRouter, useNavigate } from "@tanstack/react-router";
-import { Menu, X } from "lucide-react";
+import { Link, useRouter, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Menu, X, Wrench } from "lucide-react";
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
@@ -22,6 +22,8 @@ export function Navbar() {
   const activeId = useScrollSpy(SECTION_IDS);
   const router = useRouter();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isToolsPage = pathname.startsWith("/tools");
 
   const scrollTo = useCallback(
     async (id: string) => {
@@ -55,13 +57,13 @@ export function Navbar() {
                 onClick={() => scrollTo(item.id)}
                 className={cn(
                   "text-[11px] font-mono uppercase tracking-[0.15em] transition-colors relative py-1",
-                  activeId === item.id
+                  !isToolsPage && activeId === item.id
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 {item.label}
-                {activeId === item.id && (
+                {!isToolsPage && activeId === item.id && (
                   <motion.div
                     layoutId="nav-underline"
                     className="absolute bottom-0 left-0 right-0 h-px bg-accent"
@@ -70,6 +72,25 @@ export function Navbar() {
                 )}
               </button>
             ))}
+            <Link
+              to="/tools"
+              className={cn(
+                "text-[11px] font-mono uppercase tracking-[0.15em] transition-colors relative py-1 flex items-center gap-1.5",
+                isToolsPage
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Wrench size={12} />
+              Tools
+              {isToolsPage && (
+                <motion.div
+                  layoutId="nav-underline"
+                  className="absolute bottom-0 left-0 right-0 h-px bg-accent"
+                  transition={{ duration: 0.2 }}
+                />
+              )}
+            </Link>
             <ThemeToggle className="ml-2" />
           </div>
 
@@ -115,7 +136,7 @@ export function Navbar() {
                   onClick={() => scrollTo(item.id)}
                   className={cn(
                     "font-display text-3xl font-medium transition-colors",
-                    activeId === item.id
+                    !isToolsPage && activeId === item.id
                       ? "text-foreground"
                       : "text-muted-foreground"
                   )}
@@ -123,6 +144,22 @@ export function Navbar() {
                   {item.label}
                 </motion.button>
               ))}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: NAV_ITEMS.length * 0.05 }}
+              >
+                <Link
+                  to="/tools"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "font-display text-3xl font-medium transition-colors flex items-center gap-2",
+                    isToolsPage ? "text-foreground" : "text-muted-foreground"
+                  )}
+                >
+                  <Wrench size={24} /> Tools
+                </Link>
+              </motion.div>
             </div>
           </motion.div>
         )}
