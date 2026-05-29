@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calculator, Youtube } from "lucide-react";
+import { Calculator, Play, Youtube } from "lucide-react";
 
 export const Route = createFileRoute("/tools/")({
   component: ToolsHubPage,
@@ -19,6 +19,16 @@ const TOOLS = [
     description: "EMI, interest, RD, FD, ROI, profit & loss, percentages, and loan affordability.",
     icon: Calculator,
     accent: "#D97706",
+  },
+];
+
+const EXTERNAL = [
+  {
+    href: "https://vela.hrejuh.com",
+    title: "Vela",
+    description: "Universal streaming — movies, TV, anime, and watch together.",
+    icon: Play,
+    accent: "#7C3AED",
   },
 ];
 
@@ -60,6 +70,29 @@ function ToolsHubPage() {
                 </div>
               </div>
             </Link>
+          ))}
+          {EXTERNAL.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block rounded-xl border border-border p-6 md:p-8 transition-all hover:-translate-y-1 hover:shadow-lg"
+            >
+              <div
+                className="w-10 h-1 rounded-full mb-4"
+                style={{ backgroundColor: item.accent }}
+              />
+              <div className="flex items-start gap-4">
+                <item.icon size={24} className="text-muted-foreground group-hover:text-accent transition-colors shrink-0 mt-1" />
+                <div>
+                  <h2 className="font-display font-bold text-xl group-hover:text-accent transition-colors">
+                    {item.title}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
+                </div>
+              </div>
+            </a>
           ))}
         </div>
       </div>
