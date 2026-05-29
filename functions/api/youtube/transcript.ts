@@ -1,4 +1,4 @@
-import { YoutubeTranscript } from "youtube-transcript";
+import { fetchInnertubeTranscript } from "../../lib/innertube-transcript";
 
 function extractVideoId(input: string) {
   const trimmed = input.trim();
@@ -13,18 +13,6 @@ function extractVideoId(input: string) {
   return null;
 }
 
-async function fetchTranscript(videoId: string) {
-  try {
-    const chunks = await YoutubeTranscript.fetchTranscript(videoId, { lang: "en" });
-    const text = chunks.map((c) => c.text).join(" ").replace(/\s+/g, " ").trim();
-    if (text) return text;
-  } catch {
-    // fallback
-  }
-  const chunks = await YoutubeTranscript.fetchTranscript(videoId);
-  return chunks.map((c) => c.text).join(" ").replace(/\s+/g, " ").trim();
-}
-
 export async function onRequestGet(context: { request: Request }) {
   const url = new URL(context.request.url);
   const q = url.searchParams.get("q") ?? "";
@@ -35,7 +23,13 @@ export async function onRequestGet(context: { request: Request }) {
   }
 
   try {
-    const transcript = await fetchTranscript(videoId);
+    let transcript: string | null = null;
+    try {
+      transcript = await fetchInnertubeTranscript(videoId, "en");
+    } catch {
+      transcript = await fetchInnertubeTranscript(videoId);
+    }
+
     if (!transcript) {
       return Response.json({ error: "Transcript not available for this video." }, { status: 400 });
     }

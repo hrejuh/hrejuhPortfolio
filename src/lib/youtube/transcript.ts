@@ -1,8 +1,8 @@
-import { YoutubeTranscript } from "youtube-transcript";
 import {
   summarizeWithLlmAttempts,
   type LlmKeyAttempt,
 } from "../llm/providers";
+import { fetchInnertubeTranscript } from "./innertube-transcript";
 
 export { summarizeWithLlmAttempts, summarizeWithLlmKeys } from "../llm/providers";
 export type { LlmKeyAttempt, LlmProvider } from "../llm/providers";
@@ -22,20 +22,16 @@ export function extractVideoId(input: string): string | null {
 
 export async function fetchYoutubeTranscript(videoId: string): Promise<string | null> {
   try {
-    const chunks = await YoutubeTranscript.fetchTranscript(videoId, { lang: "en" });
-    const text = chunks.map((c) => c.text).join(" ").replace(/\s+/g, " ").trim();
-    if (text) return text;
-  } catch {
-    // try any available language
+    const en = await fetchInnertubeTranscript(videoId, "en");
+    if (en) return en;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("disabled") || message.includes("unavailable") || message.includes("No captions")) {
+      throw err;
+    }
   }
 
-  try {
-    const chunks = await YoutubeTranscript.fetchTranscript(videoId);
-    const text = chunks.map((c) => c.text).join(" ").replace(/\s+/g, " ").trim();
-    return text || null;
-  } catch {
-    return null;
-  }
+  return fetchInnertubeTranscript(videoId);
 }
 
 export async function resolveYoutubeQuery(query: string) {
