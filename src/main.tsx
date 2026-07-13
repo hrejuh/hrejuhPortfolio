@@ -6,7 +6,7 @@ import { registerSW } from "virtual:pwa-register";
 import { routeTree } from "./routeTree.gen";
 import "@/styles/globals.css";
 
-document.documentElement.dataset.build = "2026-07-14-offline-vault";
+document.documentElement.dataset.build = "2026-07-14-offline-vault-v2";
 registerSW({ immediate: true });
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
