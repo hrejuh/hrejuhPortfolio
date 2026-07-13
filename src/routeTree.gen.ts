@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools/index'
 import { Route as ToolsYoutubeRouteImport } from './routes/tools/youtube'
+import { Route as ToolsPdfRouteImport } from './routes/tools/pdf'
 import { Route as ToolsFinanceRouteImport } from './routes/tools/finance'
 import { Route as ProjectsSlugRouteImport } from './routes/projects/$slug'
 
@@ -30,6 +31,11 @@ const ToolsYoutubeRoute = ToolsYoutubeRouteImport.update({
   path: '/tools/youtube',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsPdfRoute = ToolsPdfRouteImport.update({
+  id: '/tools/pdf',
+  path: '/tools/pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsFinanceRoute = ToolsFinanceRouteImport.update({
   id: '/tools/finance',
   path: '/tools/finance',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
+  '/tools/pdf': typeof ToolsPdfRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools/': typeof ToolsIndexRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
+  '/tools/pdf': typeof ToolsPdfRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools': typeof ToolsIndexRoute
 }
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
+  '/tools/pdf': typeof ToolsPdfRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools/': typeof ToolsIndexRoute
 }
@@ -69,15 +78,23 @@ export interface FileRouteTypes {
     | '/'
     | '/projects/$slug'
     | '/tools/finance'
+    | '/tools/pdf'
     | '/tools/youtube'
     | '/tools/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/projects/$slug' | '/tools/finance' | '/tools/youtube' | '/tools'
+  to:
+    | '/'
+    | '/projects/$slug'
+    | '/tools/finance'
+    | '/tools/pdf'
+    | '/tools/youtube'
+    | '/tools'
   id:
     | '__root__'
     | '/'
     | '/projects/$slug'
     | '/tools/finance'
+    | '/tools/pdf'
     | '/tools/youtube'
     | '/tools/'
   fileRoutesById: FileRoutesById
@@ -86,6 +103,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProjectsSlugRoute: typeof ProjectsSlugRoute
   ToolsFinanceRoute: typeof ToolsFinanceRoute
+  ToolsPdfRoute: typeof ToolsPdfRoute
   ToolsYoutubeRoute: typeof ToolsYoutubeRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
 }
@@ -113,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsYoutubeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/pdf': {
+      id: '/tools/pdf'
+      path: '/tools/pdf'
+      fullPath: '/tools/pdf'
+      preLoaderRoute: typeof ToolsPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools/finance': {
       id: '/tools/finance'
       path: '/tools/finance'
@@ -134,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProjectsSlugRoute: ProjectsSlugRoute,
   ToolsFinanceRoute: ToolsFinanceRoute,
+  ToolsPdfRoute: ToolsPdfRoute,
   ToolsYoutubeRoute: ToolsYoutubeRoute,
   ToolsIndexRoute: ToolsIndexRoute,
 }

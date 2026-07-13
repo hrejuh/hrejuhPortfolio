@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calculator, Play, Youtube } from "lucide-react";
+import { Calculator, Files, Play, Youtube } from "lucide-react";
 import { ToolsAuth } from "@/components/tools/ToolsAuth";
 
 export const Route = createFileRoute("/tools/")({
@@ -7,6 +7,13 @@ export const Route = createFileRoute("/tools/")({
 });
 
 const TOOLS = [
+  {
+    to: "/tools/pdf" as const,
+    title: "PDF Toolkit",
+    description: "Merge, extract, and rotate PDFs locally. Your files never leave the browser.",
+    icon: Files,
+    accent: "#2563EB",
+  },
   {
     to: "/tools/youtube" as const,
     title: "YouTube Transcript",
