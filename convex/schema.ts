@@ -50,6 +50,8 @@ export default defineSchema({
     claimHash: v.optional(v.string()),
     fingerprint: v.optional(v.string()),
     deviceLabel: v.optional(v.string()),
+    requesterPublicKey: v.optional(v.string()),
+    vaultEnvelope: v.optional(v.string()),
     status: v.union(v.literal("waiting"), v.literal("pending"), v.literal("approved"), v.literal("consumed"), v.literal("rejected")),
     expiresAt: v.number(),
     createdAt: v.number(),

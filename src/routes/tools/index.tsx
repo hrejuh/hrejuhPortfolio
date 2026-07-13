@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calculator, Files, Play, Youtube } from "lucide-react";
+import { Calculator, Files, LockKeyhole, Play, Youtube } from "lucide-react";
 import { ToolsAuth } from "@/components/tools/ToolsAuth";
 
 export const Route = createFileRoute("/tools/")({
@@ -7,6 +7,13 @@ export const Route = createFileRoute("/tools/")({
 });
 
 const TOOLS = [
+  {
+    to: "/tools/vault" as const,
+    title: "Private Vault",
+    description: "Passwords, images, documents, and fast device transfers—encrypted before upload.",
+    icon: LockKeyhole,
+    accent: "#059669",
+  },
   {
     to: "/tools/pdf" as const,
     title: "PDF Toolkit",

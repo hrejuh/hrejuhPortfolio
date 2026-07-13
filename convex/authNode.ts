@@ -32,12 +32,16 @@ type StoredCredential = {
   counter: number;
   transports?: string[];
 };
-type Pairing = { pairingId: string; userId: string; claimHash?: string; fingerprint?: string; deviceLabel?: string; status: "waiting" | "pending" | "approved" | "consumed" | "rejected"; expiresAt: number };
+type Pairing = { pairingId: string; userId: string; claimHash?: string; fingerprint?: string; deviceLabel?: string; requesterPublicKey?: string; vaultEnvelope?: string; status: "waiting" | "pending" | "approved" | "consumed" | "rejected"; expiresAt: number };
 
 const token = (bytes = 32) => randomBytes(bytes).toString("base64url");
 const hash = (value: string) => createHash("sha256").update(value).digest("base64url");
 const PAIR_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
 const pairingCode = () => Array.from(randomBytes(8), byte => PAIR_ALPHABET[byte % PAIR_ALPHABET.length]).join("");
+
+function recoveryFile(userId: string, recoveryKey: string) {
+  return { version: 1 as const, site: "hrejuh.com" as const, userId, recoveryKey };
+}
 
 function relyingParty(origin: string) {
   const url = new URL(origin);
@@ -56,10 +60,6 @@ async function activeUser(ctx: ActionCtx, sessionToken: string): Promise<string>
   });
   if (!session) throw new Error("Please sign in again.");
   return session.userId;
-}
-
-function recoveryFile(userId: string, recoveryKey: string) {
-  return { version: 1, site: "hrejuh.com", userId, recoveryKey };
 }
 
 export const beginRegistration = action({
@@ -101,10 +101,10 @@ export const beginRegistration = action({
 });
 
 export const finishRegistration = action({
-  args: { origin: v.string(), challengeId: v.string(), response: v.any(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, { origin: requestedOrigin, challengeId, response, sessionToken }): Promise<
+  args: { origin: v.string(), challengeId: v.string(), response: v.any(), recoveryHash: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, { origin: requestedOrigin, challengeId, response, recoveryHash, sessionToken }): Promise<
     { userId: string; addedDevice: true } |
-    { userId: string; sessionToken: string; recoveryFile: ReturnType<typeof recoveryFile> }
+    { userId: string; sessionToken: string; recoveryFile?: ReturnType<typeof recoveryFile> }
   > => {
     const { origin, rpID } = relyingParty(requestedOrigin);
     const challenge: Challenge | null = await ctx.runQuery(internal.authStore.getChallenge, { challengeId });
@@ -139,16 +139,18 @@ export const finishRegistration = action({
       return { userId: challenge.userId, addedDevice: true };
     }
 
-    const recoveryKey = token(32);
+    const legacyRecoveryKey = recoveryHash ? undefined : token(32);
+    const storedRecoveryHash = recoveryHash ?? hash(legacyRecoveryKey!);
+    if (!/^[A-Za-z0-9_-]{43}$/.test(storedRecoveryHash)) throw new Error("Invalid recovery setup.");
     const newSessionToken = token(32);
     await ctx.runMutation(internal.authStore.finishNewRegistration, {
       ...common,
       userHandle: challenge.userHandle,
-      recoveryHash: hash(recoveryKey),
+      recoveryHash: storedRecoveryHash,
       tokenHash: hash(newSessionToken),
       expiresAt: Date.now() + SESSION_MS,
     });
-    return { userId: challenge.userId, sessionToken: newSessionToken, recoveryFile: recoveryFile(challenge.userId, recoveryKey) };
+    return { userId: challenge.userId, sessionToken: newSessionToken, ...(legacyRecoveryKey ? { recoveryFile: recoveryFile(challenge.userId, legacyRecoveryKey) } : {}) };
   },
 });
 
@@ -215,22 +217,24 @@ export const session = action({
 });
 
 export const recoverAccount = action({
-  args: { userId: v.string(), recoveryKey: v.string() },
-  handler: async (ctx, { userId, recoveryKey }) => {
-    if (!/^hj_[A-Za-z0-9_-]{16}$/.test(userId) || recoveryKey.length < 40) throw new Error("Invalid recovery file.");
-    const newRecoveryKey = token(32);
+  args: { userId: v.string(), recoveryKey: v.optional(v.string()), recoveryHash: v.optional(v.string()), newRecoveryHash: v.optional(v.string()) },
+  handler: async (ctx, { userId, recoveryKey, recoveryHash, newRecoveryHash }) => {
+    const legacyNewKey = recoveryKey ? token(32) : undefined;
+    const currentHash = recoveryHash ?? (recoveryKey ? hash(recoveryKey) : "");
+    const replacementHash = newRecoveryHash ?? (legacyNewKey ? hash(legacyNewKey) : "");
+    if (!/^hj_[A-Za-z0-9_-]{16}$/.test(userId) || !/^[A-Za-z0-9_-]{43}$/.test(currentHash) || !/^[A-Za-z0-9_-]{43}$/.test(replacementHash)) throw new Error("Invalid recovery file.");
     const sessionToken = token(32);
     const now = Date.now();
     const recovered = await ctx.runMutation(internal.authStore.recover, {
       userId,
-      recoveryHash: hash(recoveryKey),
-      newRecoveryHash: hash(newRecoveryKey),
+      recoveryHash: currentHash,
+      newRecoveryHash: replacementHash,
       tokenHash: hash(sessionToken),
       now,
       expiresAt: now + SESSION_MS,
     });
     if (!recovered) throw new Error("Recovery file not recognized.");
-    return { userId, sessionToken, recoveryFile: recoveryFile(userId, newRecoveryKey) };
+    return { userId, sessionToken, ...(legacyNewKey ? { recoveryFile: recoveryFile(userId, legacyNewKey) } : {}) };
   },
 });
 
@@ -255,7 +259,7 @@ export const createPairing = action({
 });
 
 export const claimPairing = action({
-  args: { code: v.string(), deviceLabel: v.string(), rateKey: v.string() },
+  args: { code: v.string(), deviceLabel: v.string(), requesterPublicKey: v.string(), rateKey: v.string() },
   handler: async (ctx, args): Promise<{ pairingId: string; fingerprint: string; expiresAt: number; claimToken: string }> => {
     const code = args.code.toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (code.length !== 8) throw new Error("Enter the 8-character linking code.");
@@ -263,7 +267,7 @@ export const claimPairing = action({
     const fingerprint = hash(claimToken).replace(/[^A-Z0-9]/gi, "").slice(0, 4).toUpperCase();
     const result: { pairingId: string; fingerprint: string; expiresAt: number } | null = await ctx.runMutation(internal.authStore.claimPairing, {
       codeHash: hash(code), claimHash: hash(claimToken), fingerprint,
-      deviceLabel: args.deviceLabel.slice(0, 80), rateKey: `claim:${hash(args.rateKey)}`, now: Date.now(),
+      deviceLabel: args.deviceLabel.slice(0, 80), requesterPublicKey: args.requesterPublicKey.slice(0, 1000), rateKey: `claim:${hash(args.rateKey)}`, now: Date.now(),
     });
     if (!result) throw new Error("Code not found or expired.");
     return { ...result, claimToken };
@@ -272,28 +276,29 @@ export const claimPairing = action({
 
 export const pairingOwnerStatus = action({
   args: { sessionToken: v.string(), pairingId: v.string() },
-  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string; deviceLabel?: string }> => {
+  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string; deviceLabel?: string; requesterPublicKey?: string }> => {
     const userId = await activeUser(ctx, args.sessionToken);
     const pair: Pairing | null = await ctx.runQuery(internal.authStore.getPairing, { pairingId: args.pairingId });
     if (!pair || pair.userId !== userId) throw new Error("Linking request not found.");
-    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint, deviceLabel: pair.deviceLabel };
+    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint, deviceLabel: pair.deviceLabel, requesterPublicKey: pair.requesterPublicKey };
   },
 });
 
 export const pairingClaimStatus = action({
   args: { pairingId: v.string(), claimToken: v.string() },
-  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string }> => {
+  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string; vaultEnvelope?: string }> => {
     const pair: Pairing | null = await ctx.runQuery(internal.authStore.getPairing, { pairingId: args.pairingId });
     if (!pair || pair.claimHash !== hash(args.claimToken)) throw new Error("Linking request not found.");
-    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint };
+    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint, vaultEnvelope: pair.vaultEnvelope };
   },
 });
 
 export const decidePairing = action({
-  args: { sessionToken: v.string(), pairingId: v.string(), approve: v.boolean() },
+  args: { sessionToken: v.string(), pairingId: v.string(), approve: v.boolean(), vaultEnvelope: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const userId = await activeUser(ctx, args.sessionToken);
-    await ctx.runMutation(internal.authStore.setPairingStatus, { pairingId: args.pairingId, userId, status: args.approve ? "approved" : "rejected" });
+    if (args.vaultEnvelope && args.vaultEnvelope.length > 4000) throw new Error("Invalid vault transfer.");
+    await ctx.runMutation(internal.authStore.setPairingStatus, { pairingId: args.pairingId, userId, status: args.approve ? "approved" : "rejected", vaultEnvelope: args.vaultEnvelope });
     return { ok: true };
   },
 });

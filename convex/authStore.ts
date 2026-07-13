@@ -32,7 +32,7 @@ export const createPairing = internalMutation({
 });
 
 export const claimPairing = internalMutation({
-  args: { codeHash: v.string(), claimHash: v.string(), fingerprint: v.string(), deviceLabel: v.string(), rateKey: v.string(), now: v.number() },
+  args: { codeHash: v.string(), claimHash: v.string(), fingerprint: v.string(), deviceLabel: v.string(), requesterPublicKey: v.string(), rateKey: v.string(), now: v.number() },
   handler: async (ctx, args) => {
     const limit = await ctx.db.query("authPairRateLimits").withIndex("by_key", q => q.eq("key", args.rateKey)).unique();
     if (limit && args.now - limit.windowStart < 10 * 60 * 1000 && limit.count >= 10) throw new Error("Too many code attempts. Try again later.");
@@ -42,7 +42,7 @@ export const claimPairing = internalMutation({
     } else await ctx.db.patch(limit._id, { count: limit.count + 1 });
     const pair = await ctx.db.query("authPairings").withIndex("by_code_hash", q => q.eq("codeHash", args.codeHash)).unique();
     if (!pair || pair.status !== "waiting" || pair.expiresAt <= args.now) return null;
-    await ctx.db.patch(pair._id, { status: "pending", claimHash: args.claimHash, fingerprint: args.fingerprint, deviceLabel: args.deviceLabel });
+    await ctx.db.patch(pair._id, { status: "pending", claimHash: args.claimHash, fingerprint: args.fingerprint, deviceLabel: args.deviceLabel, requesterPublicKey: args.requesterPublicKey });
     return { pairingId: pair.pairingId, fingerprint: args.fingerprint, expiresAt: pair.expiresAt };
   },
 });
@@ -53,11 +53,11 @@ export const getPairing = internalQuery({
 });
 
 export const setPairingStatus = internalMutation({
-  args: { pairingId: v.string(), userId: v.string(), status: v.union(v.literal("approved"), v.literal("rejected")) },
+  args: { pairingId: v.string(), userId: v.string(), status: v.union(v.literal("approved"), v.literal("rejected")), vaultEnvelope: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const pair = await ctx.db.query("authPairings").withIndex("by_pairing_id", q => q.eq("pairingId", args.pairingId)).unique();
     if (!pair || pair.userId !== args.userId || pair.status !== "pending" || pair.expiresAt <= Date.now()) throw new Error("This linking request has expired.");
-    await ctx.db.patch(pair._id, { status: args.status });
+    await ctx.db.patch(pair._id, { status: args.status, vaultEnvelope: args.vaultEnvelope });
   },
 });
 

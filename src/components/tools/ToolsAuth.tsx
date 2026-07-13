@@ -1,12 +1,13 @@
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import { Check, KeyRound, Link2, LogOut, ShieldCheck, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { getVaultKey, saveVaultKey } from "@/lib/vault-crypto";
 
 type Account = { userId: string; deviceCount: number };
 type Ceremony = { challengeId: string; options: any };
-type RecoveryFile = { version: 1; site: "hrejuh.com"; userId: string; recoveryKey: string };
-type OwnerPair = { pairingId: string; code: string; expiresAt: number; status?: string; fingerprint?: string; deviceLabel?: string };
-type ClaimPair = { pairingId: string; claimToken: string; fingerprint: string; status?: string };
+type RecoveryFile = { version: 1 | 2; site: "hrejuh.com"; userId: string; recoveryKey: string; vaultKey?: string };
+type OwnerPair = { pairingId: string; code: string; expiresAt: number; status?: string; fingerprint?: string; deviceLabel?: string; requesterPublicKey?: string };
+type ClaimPair = { pairingId: string; claimToken: string; fingerprint: string; status?: string; vaultEnvelope?: string; privateKey?: CryptoKey };
 
 async function authRequest<T>(body: Record<string, unknown>): Promise<T> {
   const response = await fetch("/api/auth", {
@@ -27,6 +28,40 @@ function downloadRecoveryFile(file: RecoveryFile) {
   link.download = "hrejuh-recovery-key.txt";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function randomKey() {
+  return btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function keyHash(value: string) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+const bytes64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
+const from64 = (value: string) => Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+
+async function wrapVaultKey(requesterPublicKey: string) {
+  const vaultKey = await getVaultKey();
+  if (!vaultKey) return undefined;
+  const owner = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+  const requester = await crypto.subtle.importKey("jwk", JSON.parse(requesterPublicKey), { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const wrappingKey = await crypto.subtle.deriveKey({ name: "ECDH", public: requester }, owner.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", vaultKey));
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, wrappingKey, raw));
+  return JSON.stringify({ publicKey: await crypto.subtle.exportKey("jwk", owner.publicKey), iv: bytes64(iv), data: bytes64(data) });
+}
+
+async function unwrapVaultKey(envelope: string, privateKey: CryptoKey) {
+  const payload = JSON.parse(envelope) as { publicKey: JsonWebKey; iv: string; data: string };
+  const owner = await crypto.subtle.importKey("jwk", payload.publicKey, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const wrappingKey = await crypto.subtle.deriveKey({ name: "ECDH", public: owner }, privateKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const raw = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: from64(payload.iv) }, wrappingKey, from64(payload.data)));
+  await saveVaultKey(bytes64(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
 }
 
 export function ToolsAuth() {
@@ -58,7 +93,7 @@ export function ToolsAuth() {
     if (!claimPair || claimPair.status === "approved") return;
     const timer = window.setInterval(async () => {
       try {
-        const status = await authRequest<{ status: string }>({ op: "pair-claim-status", pairingId: claimPair.pairingId, claimToken: claimPair.claimToken });
+        const status = await authRequest<{ status: string; vaultEnvelope?: string }>({ op: "pair-claim-status", pairingId: claimPair.pairingId, claimToken: claimPair.claimToken });
         setClaimPair(current => current ? { ...current, ...status } : null);
       } catch { /* expiry is shown by the server state */ }
     }, 2000);
@@ -68,6 +103,7 @@ export function ToolsAuth() {
   useEffect(() => {
     if (claimPair?.status !== "approved") return;
     run(async () => {
+      if (claimPair.vaultEnvelope && claimPair.privateKey) await unwrapVaultKey(claimPair.vaultEnvelope, claimPair.privateKey);
       const start = await authRequest<Ceremony>({ op: "pair-register-options", pairingId: claimPair.pairingId, claimToken: claimPair.claimToken });
       const response = await startRegistration({ optionsJSON: start.options });
       await authRequest({ op: "pair-register-verify", challengeId: start.challengeId, pairingId: claimPair.pairingId, claimToken: claimPair.claimToken, response });
@@ -86,10 +122,13 @@ export function ToolsAuth() {
   };
 
   const register = () => run(async () => {
+    const recoveryKey = randomKey();
+    const vaultKey = randomKey();
     const start = await authRequest<Ceremony>({ op: "register-options" });
     const response = await startRegistration({ optionsJSON: start.options });
-    const result = await authRequest<Account & { recoveryFile: RecoveryFile }>({ op: "register-verify", challengeId: start.challengeId, response });
-    downloadRecoveryFile(result.recoveryFile);
+    const result = await authRequest<Account>({ op: "register-verify", challengeId: start.challengeId, response, recoveryHash: await keyHash(recoveryKey) });
+    await saveVaultKey(vaultKey);
+    downloadRecoveryFile({ version: 2, site: "hrejuh.com", userId: result.userId, recoveryKey, vaultKey });
     setAccount({ userId: result.userId, deviceCount: 1 });
     setMessage("Account created. Keep the downloaded recovery file somewhere safe.");
   });
@@ -117,14 +156,17 @@ export function ToolsAuth() {
   });
 
   const claimLink = () => run(async () => {
-    const result = await authRequest<ClaimPair>({ op: "pair-claim", code: pairCode, deviceLabel: `${navigator.platform || "Device"} · ${navigator.userAgent.includes("Firefox") ? "Firefox" : navigator.userAgent.includes("Edg") ? "Edge" : "Browser"}` });
-    setClaimPair({ ...result, status: "pending" });
+    const keys = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+    const requesterPublicKey = JSON.stringify(await crypto.subtle.exportKey("jwk", keys.publicKey));
+    const result = await authRequest<ClaimPair>({ op: "pair-claim", code: pairCode, requesterPublicKey, deviceLabel: `${navigator.platform || "Device"} · ${navigator.userAgent.includes("Firefox") ? "Firefox" : navigator.userAgent.includes("Edg") ? "Edge" : "Browser"}` });
+    setClaimPair({ ...result, status: "pending", privateKey: keys.privateKey });
     setMessage("Check that the confirmation letters match, then approve on your signed-in device.");
   });
 
   const decidePair = (approve: boolean) => run(async () => {
     if (!ownerPair) return;
-    await authRequest({ op: "pair-decide", pairingId: ownerPair.pairingId, approve });
+    const vaultEnvelope = approve && ownerPair.requesterPublicKey ? await wrapVaultKey(ownerPair.requesterPublicKey) : undefined;
+    await authRequest({ op: "pair-decide", pairingId: ownerPair.pairingId, approve, vaultEnvelope });
     setOwnerPair({ ...ownerPair, status: approve ? "approved" : "rejected" });
     setMessage(approve ? "Approved. The new device will now create its own passkey." : "Request rejected.");
   });
@@ -132,9 +174,15 @@ export function ToolsAuth() {
   const recover = (file: File) => run(async () => {
     if (file.size > 10_000) throw new Error("Invalid recovery file.");
     const recovery = JSON.parse(await file.text()) as RecoveryFile;
-    if (recovery.version !== 1 || recovery.site !== "hrejuh.com") throw new Error("Invalid recovery file.");
-    const result = await authRequest<{ userId: string; recoveryFile: RecoveryFile }>({ op: "recover", recovery });
-    downloadRecoveryFile(result.recoveryFile);
+    if (![1, 2].includes(recovery.version) || recovery.site !== "hrejuh.com") throw new Error("Invalid recovery file.");
+    const newRecoveryKey = randomKey();
+    const vaultKey = recovery.vaultKey ?? randomKey();
+    const result = await authRequest<{ userId: string }>({
+      op: "recover",
+      recovery: { userId: recovery.userId, recoveryHash: await keyHash(recovery.recoveryKey), newRecoveryHash: await keyHash(newRecoveryKey) },
+    });
+    await saveVaultKey(vaultKey);
+    downloadRecoveryFile({ version: 2, site: "hrejuh.com", userId: result.userId, recoveryKey: newRecoveryKey, vaultKey });
     setAccount(await authRequest<Account>({ op: "session" }));
     setMessage(`Access restored for ${result.userId}. Your replacement recovery file was downloaded; the old one no longer works.`);
   });

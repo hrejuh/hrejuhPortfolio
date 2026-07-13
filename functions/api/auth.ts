@@ -6,7 +6,7 @@ const MAX_AGE = 15 * 24 * 60 * 60;
 
 type Env = { CONVEX_URL?: string; VITE_CONVEX_URL?: string };
 
-function readCookie(request: Request) {
+export function readCookie(request: Request) {
   const match = request.headers.get("cookie")?.match(new RegExp(`(?:^|; )${COOKIE}=([^;]+)`));
   return match?.[1] ?? "";
 }
@@ -26,7 +26,7 @@ export async function handleAuthRequest(request: Request, env: Env) {
   const convexUrl = env.CONVEX_URL ?? env.VITE_CONVEX_URL;
   if (!convexUrl) return Response.json({ error: "Authentication is not configured." }, { status: 503 });
   const client = new ConvexHttpClient(convexUrl);
-  const body = await request.json() as { op?: string; challengeId?: string; response?: unknown; recovery?: { userId?: string; recoveryKey?: string }; pairingId?: string; claimToken?: string; code?: string; deviceLabel?: string; approve?: boolean };
+  const body = await request.json() as { op?: string; challengeId?: string; response?: unknown; recoveryHash?: string; recovery?: { userId?: string; recoveryHash?: string; newRecoveryHash?: string }; pairingId?: string; claimToken?: string; code?: string; deviceLabel?: string; requesterPublicKey?: string; vaultEnvelope?: string; approve?: boolean };
   const sessionToken = readCookie(request);
   let result: Record<string, unknown>;
   let session = sessionToken;
@@ -37,7 +37,7 @@ export async function handleAuthRequest(request: Request, env: Env) {
       result = await client.action(api.authNode.beginRegistration, { origin });
       break;
     case "register-verify":
-      result = await client.action(api.authNode.finishRegistration, { origin, challengeId: body.challengeId ?? "", response: body.response });
+      result = await client.action(api.authNode.finishRegistration, { origin, challengeId: body.challengeId ?? "", response: body.response, recoveryHash: body.recoveryHash });
       session = result.sessionToken as string;
       break;
     case "login-options":
@@ -68,14 +68,14 @@ export async function handleAuthRequest(request: Request, env: Env) {
       result = await client.action(api.authNode.pairingOwnerStatus, { sessionToken, pairingId: body.pairingId ?? "" });
       break;
     case "pair-claim":
-      result = await client.action(api.authNode.claimPairing, { code: body.code ?? "", deviceLabel: body.deviceLabel ?? "New device", rateKey: request.headers.get("CF-Connecting-IP") ?? "local" });
+      result = await client.action(api.authNode.claimPairing, { code: body.code ?? "", deviceLabel: body.deviceLabel ?? "New device", requesterPublicKey: body.requesterPublicKey ?? "", rateKey: request.headers.get("CF-Connecting-IP") ?? "local" });
       break;
     case "pair-claim-status":
       result = await client.action(api.authNode.pairingClaimStatus, { pairingId: body.pairingId ?? "", claimToken: body.claimToken ?? "" });
       break;
     case "pair-decide":
       if (!sessionToken) throw new Error("Please sign in again.");
-      result = await client.action(api.authNode.decidePairing, { sessionToken, pairingId: body.pairingId ?? "", approve: Boolean(body.approve) });
+      result = await client.action(api.authNode.decidePairing, { sessionToken, pairingId: body.pairingId ?? "", approve: Boolean(body.approve), vaultEnvelope: body.vaultEnvelope });
       break;
     case "pair-register-options":
       result = await client.action(api.authNode.beginPairedRegistration, { origin, pairingId: body.pairingId ?? "", claimToken: body.claimToken ?? "" });
@@ -87,7 +87,8 @@ export async function handleAuthRequest(request: Request, env: Env) {
     case "recover":
       result = await client.action(api.authNode.recoverAccount, {
         userId: body.recovery?.userId ?? "",
-        recoveryKey: body.recovery?.recoveryKey ?? "",
+        recoveryHash: body.recovery?.recoveryHash ?? "",
+        newRecoveryHash: body.recovery?.newRecoveryHash ?? "",
       });
       session = result.sessionToken as string;
       break;
