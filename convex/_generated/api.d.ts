@@ -9,6 +9,8 @@
  */
 
 import type * as actions_youtube from "../actions/youtube.js";
+import type * as authNode from "../authNode.js";
+import type * as authStore from "../authStore.js";
 import type * as mutations_analytics from "../mutations/analytics.js";
 import type * as mutations_contact from "../mutations/contact.js";
 import type * as queries_analytics from "../queries/analytics.js";
@@ -22,6 +24,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "actions/youtube": typeof actions_youtube;
+  authNode: typeof authNode;
+  authStore: typeof authStore;
   "mutations/analytics": typeof mutations_analytics;
   "mutations/contact": typeof mutations_contact;
   "queries/analytics": typeof queries_analytics;

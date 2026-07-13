@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Calculator, Play, Youtube } from "lucide-react";
+import { ToolsAuth } from "@/components/tools/ToolsAuth";
 
 export const Route = createFileRoute("/tools/")({
   component: ToolsHubPage,
@@ -43,7 +44,10 @@ function ToolsHubPage() {
           ← Home
         </Link>
 
-        <h1 className="font-display font-bold text-4xl md:text-5xl mb-3">Tools</h1>
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h1 className="font-display font-bold text-4xl md:text-5xl">Tools</h1>
+          <ToolsAuth />
+        </div>
         <p className="text-muted-foreground mb-12 max-w-xl">
           Free utilities — no account needed. Everything runs in your browser except transcript fetching
           and optional LLM summarization (your key stays encrypted locally).

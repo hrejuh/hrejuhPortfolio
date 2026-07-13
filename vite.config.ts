@@ -5,6 +5,7 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 import { youtubeToolsApi } from "./vite-youtube-api";
+import { authApi } from "./vite-auth-api";
 
 export default defineConfig({
   plugins: [
@@ -15,6 +16,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     youtubeToolsApi(),
+    authApi(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: [

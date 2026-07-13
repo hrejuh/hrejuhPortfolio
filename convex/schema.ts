@@ -2,6 +2,46 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  authUsers: defineTable({
+    userId: v.string(),
+    userHandle: v.string(),
+    recoveryHash: v.string(),
+    createdAt: v.number(),
+  }).index("by_user_id", ["userId"]),
+
+  authCredentials: defineTable({
+    userId: v.string(),
+    credentialId: v.string(),
+    publicKey: v.array(v.number()),
+    counter: v.number(),
+    transports: v.optional(v.array(v.string())),
+    deviceType: v.string(),
+    backedUp: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_credential_id", ["credentialId"]),
+
+  authChallenges: defineTable({
+    challengeId: v.string(),
+    challenge: v.string(),
+    purpose: v.union(v.literal("register"), v.literal("add-device"), v.literal("login")),
+    userId: v.optional(v.string()),
+    userHandle: v.optional(v.string()),
+    origin: v.string(),
+    expiresAt: v.number(),
+  }).index("by_challenge_id", ["challengeId"]),
+
+  authSessions: defineTable({
+    userId: v.string(),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    lastSeenAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_token_hash", ["tokenHash"])
+    .index("by_user_id", ["userId"]),
+
   contacts: defineTable({
     name: v.string(),
     email: v.string(),
