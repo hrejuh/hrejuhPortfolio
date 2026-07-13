@@ -5,7 +5,8 @@
   "compatibility_date": "2026-07-13",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "CONVEX_URL": "https://posh-frog-530.convex.cloud"
+    "CONVEX_URL": "https://posh-frog-530.convex.cloud",
+    "VITE_CONVEX_URL": "https://posh-frog-530.convex.cloud"
   },
   "r2_buckets": [
     {
