@@ -1,0 +1,3 @@
+/tools / 200
+/tools/* / 200
+/projects/* / 200
