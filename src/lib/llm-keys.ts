@@ -5,6 +5,8 @@ import {
   clearEncryptedSecret,
 } from "@/lib/secure-storage";
 import { inferProvider, type LlmKeyAttempt, type LlmProvider } from "@/lib/llm/providers";
+import { getVaultKey } from "@/lib/vault-crypto";
+import { loadVaultJson, saveVaultJson } from "@/lib/vault-store";
 
 const LEGACY_KEY_STORAGE = "hrejuh-tools-llm-api-key";
 const KEYS_STORAGE = "hrejuh-tools-llm-api-keys";
@@ -15,6 +17,7 @@ export type LlmKeyRecord = {
   label: string;
   provider: import("@/lib/llm/providers").LlmProvider;
   ciphertext: string;
+  secret?: string;
   addedAt: number;
 };
 
@@ -29,7 +32,7 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-async function loadRecords(): Promise<LlmKeyRecord[]> {
+async function loadLocalRecords(): Promise<LlmKeyRecord[]> {
   const raw = localStorage.getItem(KEYS_STORAGE);
   if (raw) {
     try {
@@ -47,7 +50,11 @@ async function loadRecords(): Promise<LlmKeyRecord[]> {
 
   const legacy = await loadEncryptedSecret(LEGACY_KEY_STORAGE);
   if (legacy?.trim()) {
-    const migrated = await addLlmKeyRecord(legacy.trim(), "Saved key");
+    const migrated: LlmKeyRecord = {
+      id: newId(), hint: maskKeyHint(legacy.trim()), label: "Saved key",
+      provider: inferProvider(legacy.trim(), "Saved key"), ciphertext: await encryptSecret(legacy.trim()), addedAt: Date.now(),
+    };
+    localStorage.setItem(KEYS_STORAGE, JSON.stringify([migrated]));
     await clearEncryptedSecret(LEGACY_KEY_STORAGE);
     return [migrated];
   }
@@ -55,7 +62,29 @@ async function loadRecords(): Promise<LlmKeyRecord[]> {
   return [];
 }
 
+async function loadRecords(): Promise<LlmKeyRecord[]> {
+  if (await getVaultKey()) {
+    try {
+      const synced = await loadVaultJson<LlmKeyRecord[]>("llm-keys", []);
+      if (synced.length) return synced;
+      const local = await loadLocalRecords();
+      if (local.length) {
+        const migrated = (await Promise.all(local.map(async (record) => ({ ...record, secret: await decryptLlmKey(record) ?? undefined, ciphertext: "" })))).filter((record) => record.secret);
+        await saveVaultJson("llm-keys", migrated);
+        localStorage.removeItem(KEYS_STORAGE);
+        return migrated;
+      }
+      return [];
+    } catch { /* signed-out users keep the existing local store */ }
+  }
+  return loadLocalRecords();
+}
+
 async function persistRecords(records: LlmKeyRecord[]): Promise<void> {
+  if (await getVaultKey()) {
+    await saveVaultJson("llm-keys", records);
+    return;
+  }
   localStorage.setItem(KEYS_STORAGE, JSON.stringify(records));
 }
 
@@ -69,12 +98,14 @@ async function addLlmKeyRecord(
     throw new Error("API key looks too short.");
   }
 
+  const vault = Boolean(await getVaultKey());
   const record: LlmKeyRecord = {
     id: newId(),
     hint: maskKeyHint(trimmed),
     label: label.trim() || inferProvider(trimmed, label),
     provider: provider === "auto" ? inferProvider(trimmed, label) : provider,
-    ciphertext: await encryptSecret(trimmed),
+    ciphertext: vault ? "" : await encryptSecret(trimmed),
+    secret: vault ? trimmed : undefined,
     addedAt: Date.now(),
   };
 
@@ -105,7 +136,7 @@ export async function removeLlmKey(id: string): Promise<void> {
 }
 
 export async function decryptLlmKey(record: LlmKeyRecord): Promise<string | null> {
-  return decryptSecret(record.ciphertext);
+  return record.secret ?? decryptSecret(record.ciphertext);
 }
 
 export async function decryptAllLlmKeys(records?: LlmKeyRecord[]): Promise<string[]> {

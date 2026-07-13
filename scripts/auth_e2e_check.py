@@ -64,7 +64,7 @@ with sync_playwright() as playwright:
     second_page.get_by_role("heading", name="Your account").wait_for()
     assert any(cookie["name"] == "hj_session" and cookie["httpOnly"] for cookie in second_context.cookies())
     second_page.goto("http://localhost:5173/tools/vault")
-    second_page.get_by_role("button", name="Passwords").wait_for()
+    second_page.get_by_role("button", name="Records").wait_for()
     second_context.close()
 
     cdp.send("WebAuthn.removeVirtualAuthenticator", {"authenticatorId": first_authenticator})

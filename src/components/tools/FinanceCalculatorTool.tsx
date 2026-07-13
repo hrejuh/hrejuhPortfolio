@@ -61,17 +61,18 @@ export function FinanceCalculatorTool() {
 function EmiCalculator() {
   const [principal, setPrincipal] = useState("1000000");
   const [rate, setRate] = useState("10.5");
-  const [tenure, setTenure] = useState("240");
+  const [tenure, setTenure] = useState("20");
+  const [tenureUnit, setTenureUnit] = useState<"years" | "months">("years");
   const [mode, setMode] = useState<"reducing" | "flat">("reducing");
   const [showSchedule, setShowSchedule] = useState(false);
 
   const reducing = useMemo(
-    () => calculateEMI(parseNum(principal), parseNum(rate), parseNum(tenure)),
-    [principal, rate, tenure]
+    () => calculateEMI(parseNum(principal), parseNum(rate), parseNum(tenure) * (tenureUnit === "years" ? 12 : 1)),
+    [principal, rate, tenure, tenureUnit]
   );
   const flat = useMemo(
-    () => calculateFlatRateLoan(parseNum(principal), parseNum(rate), parseNum(tenure)),
-    [principal, rate, tenure]
+    () => calculateFlatRateLoan(parseNum(principal), parseNum(rate), parseNum(tenure) * (tenureUnit === "years" ? 12 : 1)),
+    [principal, rate, tenure, tenureUnit]
   );
   const result = mode === "flat" ? flat : reducing;
   const schedule = mode === "reducing" ? reducing.schedule : [];
@@ -95,7 +96,7 @@ function EmiCalculator() {
         </div>
         <Field id="emi-p" label="Loan amount" value={principal} onChange={setPrincipal} suffix="₹" />
         <Field id="emi-r" label="Interest rate (p.a.)" value={rate} onChange={setRate} suffix="%" step="0.1" />
-        <Field id="emi-t" label="Tenure" value={tenure} onChange={setTenure} suffix="months" />
+        <div className="grid grid-cols-[1fr_auto] items-end gap-2"><Field id="emi-t" label="Tenure" value={tenure} onChange={setTenure} suffix={tenureUnit} /><button type="button" onClick={() => { setTenureUnit(tenureUnit === "years" ? "months" : "years"); setTenure(tenureUnit === "years" ? String(parseNum(tenure) * 12) : String(parseNum(tenure) / 12)); }} className="h-[42px] rounded-lg border border-border px-3 text-xs text-muted-foreground hover:text-foreground">Use {tenureUnit === "years" ? "months" : "years"}</button></div>
       </div>
       <ResultBox title="Results">
         <ResultRow label="Monthly EMI" value={formatINR(result.emi)} highlight />
@@ -124,7 +125,7 @@ function EmiCalculator() {
               </tr>
             </thead>
             <tbody>
-              {schedule.slice(0, 120).map((row) => (
+              {schedule.map((row) => (
                 <tr key={row.month} className="border-b border-border/50">
                   <td className="px-4 py-2">{row.month}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{formatINR(row.emi, 0)}</td>

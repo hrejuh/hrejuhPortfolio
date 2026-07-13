@@ -2,11 +2,44 @@ const DB = "hrejuh-vault";
 
 function database() {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore("keys");
+    const request = indexedDB.open(DB, 2);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("keys")) request.result.createObjectStore("keys");
+      if (!request.result.objectStoreNames.contains("objects")) request.result.createObjectStore("objects");
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+export type CachedVaultObject = { data: Uint8Array; pending: boolean };
+
+export async function saveVaultCache(id: string, data: Uint8Array, pending: boolean) {
+  const db = await database();
+  await new Promise<void>((resolve, reject) => {
+    const request = db.transaction("objects", "readwrite").objectStore("objects").put({ data, pending }, id);
+    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
+  });
+  db.close();
+}
+
+export async function loadVaultCache(id: string) {
+  const db = await database();
+  const cached = await new Promise<CachedVaultObject | undefined>((resolve, reject) => {
+    const request = db.transaction("objects").objectStore("objects").get(id);
+    request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+  });
+  db.close();
+  return cached;
+}
+
+export async function deleteVaultCache(id: string) {
+  const db = await database();
+  await new Promise<void>((resolve, reject) => {
+    const request = db.transaction("objects", "readwrite").objectStore("objects").delete(id);
+    request.onsuccess = () => resolve(); request.onerror = () => reject(request.error);
+  });
+  db.close();
 }
 
 export async function saveVaultKey(encoded: string) {

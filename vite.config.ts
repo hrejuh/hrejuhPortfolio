@@ -18,7 +18,12 @@ export default defineConfig({
     youtubeToolsApi(),
     authApi(),
     VitePWA({
-      selfDestroying: true,
+      registerType: "autoUpdate",
+      workbox: {
+        cleanupOutdatedCaches: true,
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
+      },
       includeAssets: [
         "favicon.svg",
         "favicon-192.png",

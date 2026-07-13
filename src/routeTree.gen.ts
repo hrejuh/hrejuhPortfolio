@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolsIndexRouteImport } from './routes/tools/index'
 import { Route as ToolsYoutubeRouteImport } from './routes/tools/youtube'
 import { Route as ToolsVaultRouteImport } from './routes/tools/vault'
+import { Route as ToolsQrRouteImport } from './routes/tools/qr'
 import { Route as ToolsPdfRouteImport } from './routes/tools/pdf'
 import { Route as ToolsFinanceRouteImport } from './routes/tools/finance'
 import { Route as ProjectsSlugRouteImport } from './routes/projects/$slug'
@@ -37,6 +38,11 @@ const ToolsVaultRoute = ToolsVaultRouteImport.update({
   path: '/tools/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsQrRoute = ToolsQrRouteImport.update({
+  id: '/tools/qr',
+  path: '/tools/qr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsPdfRoute = ToolsPdfRouteImport.update({
   id: '/tools/pdf',
   path: '/tools/pdf',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
   '/tools/pdf': typeof ToolsPdfRoute
+  '/tools/qr': typeof ToolsQrRoute
   '/tools/vault': typeof ToolsVaultRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools/': typeof ToolsIndexRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
   '/tools/pdf': typeof ToolsPdfRoute
+  '/tools/qr': typeof ToolsQrRoute
   '/tools/vault': typeof ToolsVaultRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools': typeof ToolsIndexRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/projects/$slug': typeof ProjectsSlugRoute
   '/tools/finance': typeof ToolsFinanceRoute
   '/tools/pdf': typeof ToolsPdfRoute
+  '/tools/qr': typeof ToolsQrRoute
   '/tools/vault': typeof ToolsVaultRoute
   '/tools/youtube': typeof ToolsYoutubeRoute
   '/tools/': typeof ToolsIndexRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/projects/$slug'
     | '/tools/finance'
     | '/tools/pdf'
+    | '/tools/qr'
     | '/tools/vault'
     | '/tools/youtube'
     | '/tools/'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/projects/$slug'
     | '/tools/finance'
     | '/tools/pdf'
+    | '/tools/qr'
     | '/tools/vault'
     | '/tools/youtube'
     | '/tools'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/projects/$slug'
     | '/tools/finance'
     | '/tools/pdf'
+    | '/tools/qr'
     | '/tools/vault'
     | '/tools/youtube'
     | '/tools/'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   ProjectsSlugRoute: typeof ProjectsSlugRoute
   ToolsFinanceRoute: typeof ToolsFinanceRoute
   ToolsPdfRoute: typeof ToolsPdfRoute
+  ToolsQrRoute: typeof ToolsQrRoute
   ToolsVaultRoute: typeof ToolsVaultRoute
   ToolsYoutubeRoute: typeof ToolsYoutubeRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsVaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/qr': {
+      id: '/tools/qr'
+      path: '/tools/qr'
+      fullPath: '/tools/qr'
+      preLoaderRoute: typeof ToolsQrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools/pdf': {
       id: '/tools/pdf'
       path: '/tools/pdf'
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsSlugRoute: ProjectsSlugRoute,
   ToolsFinanceRoute: ToolsFinanceRoute,
   ToolsPdfRoute: ToolsPdfRoute,
+  ToolsQrRoute: ToolsQrRoute,
   ToolsVaultRoute: ToolsVaultRoute,
   ToolsYoutubeRoute: ToolsYoutubeRoute,
   ToolsIndexRoute: ToolsIndexRoute,

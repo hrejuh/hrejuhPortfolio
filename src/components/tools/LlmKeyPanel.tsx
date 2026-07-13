@@ -38,7 +38,7 @@ export function LlmKeyPanel({ keys, ready, onAdd, onRemove, compact }: LlmKeyPan
       setDraftKey("");
       setDraftLabel("");
       setDraftProvider("auto");
-      toast.success("Key saved (encrypted locally).");
+      toast.success("Key saved securely.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save key.");
     } finally {
@@ -69,7 +69,7 @@ export function LlmKeyPanel({ keys, ready, onAdd, onRemove, compact }: LlmKeyPan
         </p>
         {ready && (
           <span className="text-[10px] font-mono text-muted-foreground">
-            {keys.length} saved · tried in order · encrypted locally
+            {keys.length} saved · tried in order · encrypted vault sync
           </span>
         )}
       </div>

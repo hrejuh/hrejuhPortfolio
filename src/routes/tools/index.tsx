@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Calculator, Files, LockKeyhole, Play, Youtube } from "lucide-react";
+import { Calculator, Files, LockKeyhole, Play, QrCode, Youtube } from "lucide-react";
 import { ToolsAuth } from "@/components/tools/ToolsAuth";
 
 export const Route = createFileRoute("/tools/")({
@@ -13,6 +13,13 @@ const TOOLS = [
     description: "Passwords, images, documents, and fast device transfers—encrypted before upload.",
     icon: LockKeyhole,
     accent: "#059669",
+  },
+  {
+    to: "/tools/qr" as const,
+    title: "QR Maker",
+    description: "Create a downloadable QR code from any link or text, entirely in your browser.",
+    icon: QrCode,
+    accent: "#0F766E",
   },
   {
     to: "/tools/pdf" as const,

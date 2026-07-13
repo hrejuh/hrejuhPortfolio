@@ -63,7 +63,10 @@ export function Field({
           min={min}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-surface-elevated border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+          inputMode={type === "number" ? "decimal" : undefined}
+          onFocus={(event) => event.currentTarget.select()}
+          onWheel={(event) => type === "number" && event.currentTarget.blur()}
+          className={cn("w-full bg-surface-elevated border border-border rounded-lg px-4 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-accent", suffix && "pr-20")}
         />
         {suffix && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -113,14 +116,14 @@ export function TabBar<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2 mb-8 border-b border-border pb-4">
+    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 mb-8 border-b border-border pb-4 [scrollbar-width:none]">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
           className={cn(
-            "text-[11px] font-mono uppercase tracking-[0.12em] px-3 py-1.5 rounded-full border transition-colors",
+            "shrink-0 text-[11px] font-mono uppercase tracking-[0.12em] px-3 py-1.5 rounded-full border transition-colors",
             active === tab.id
               ? "bg-accent/10 border-accent text-foreground"
               : "border-border text-muted-foreground hover:text-foreground"
