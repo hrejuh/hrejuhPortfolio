@@ -5,6 +5,8 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { routeTree } from "./routeTree.gen";
 import "@/styles/globals.css";
 
+document.documentElement.dataset.build = "2026-07-14-vault-hotfix";
+
 async function retireStaleAppShell() {
   if (!("serviceWorker" in navigator)) return;
   const controlled = Boolean(navigator.serviceWorker.controller);
