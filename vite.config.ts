@@ -18,7 +18,7 @@ export default defineConfig({
     youtubeToolsApi(),
     authApi(),
     VitePWA({
-      registerType: "autoUpdate",
+      selfDestroying: true,
       includeAssets: [
         "favicon.svg",
         "favicon-192.png",
@@ -76,29 +76,6 @@ export default defineConfig({
             short_name: "Finance",
             url: "/tools/finance",
             icons: [{ src: "/favicon-192.png", sizes: "192x192" }],
-          },
-        ],
-      },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,webmanifest}"],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "gfonts-webfonts",
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
           },
         ],
       },

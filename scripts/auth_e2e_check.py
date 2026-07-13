@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
 
 def add_authenticator(cdp):
@@ -25,12 +25,16 @@ with sync_playwright() as playwright:
     cdp.send("WebAuthn.enable")
     first_authenticator = add_authenticator(cdp)
 
-    page.goto("http://127.0.0.1:5173/tools")
-    page.wait_for_load_state("networkidle")
+    page.goto("http://localhost:5173/tools")
+    page.wait_for_load_state("domcontentloaded")
     page.get_by_role("button", name="Sign in").click()
 
-    with page.expect_download() as recovery_download:
-        page.get_by_role("button", name="Create anonymous account").click()
+    try:
+        with page.expect_download() as recovery_download:
+            page.get_by_role("button", name="Create anonymous account").click()
+    except PlaywrightTimeout:
+        print(page.get_by_role("dialog").inner_text())
+        raise
     recovery = json.loads(Path(recovery_download.value.path()).read_text())
     page.get_by_role("heading", name="Your account").wait_for()
     assert recovery["site"] == "hrejuh.com"
@@ -41,10 +45,29 @@ with sync_playwright() as playwright:
     page.get_by_role("button", name="Sign in with a passkey").click()
     page.get_by_role("heading", name="Your account").wait_for()
 
+    page.get_by_role("button", name="Link another device").click()
+    code = page.get_by_test_id("pair-code").inner_text()
+    second_context = browser.new_context()
+    second_page = second_context.new_page()
+    second_cdp = second_context.new_cdp_session(second_page)
+    second_cdp.send("WebAuthn.enable")
+    add_authenticator(second_cdp)
+    second_page.goto("http://localhost:5173/tools")
+    second_page.get_by_role("button", name="Sign in").click()
+    second_page.get_by_placeholder("ABCD-EFGH").fill(code)
+    second_page.get_by_role("button", name="Continue").click()
+    fingerprint = second_page.get_by_test_id("claim-fingerprint").inner_text()
+    page.get_by_test_id("owner-fingerprint").wait_for()
+    assert page.get_by_test_id("owner-fingerprint").inner_text() == fingerprint
+    page.get_by_role("button", name="Approve").click()
+    second_page.get_by_role("heading", name="Your account").wait_for()
+    assert any(cookie["name"] == "hj_session" and cookie["httpOnly"] for cookie in second_context.cookies())
+    second_context.close()
+
     cdp.send("WebAuthn.removeVirtualAuthenticator", {"authenticatorId": first_authenticator})
     add_authenticator(cdp)
-    page.get_by_role("button", name="Add another device").click()
-    page.get_by_text("2 registered passkeys").wait_for()
+    page.get_by_role("button", name="Add a passkey on this device").click()
+    page.get_by_text("3 registered passkeys").wait_for()
 
     page.get_by_role("button", name="Sign out").click()
     recovery_input = page.locator('input[type="file"]')

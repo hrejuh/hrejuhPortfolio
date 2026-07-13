@@ -1,10 +1,12 @@
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
-import { KeyRound, Link2, LogOut, ShieldCheck, Upload, X } from "lucide-react";
+import { Check, KeyRound, Link2, LogOut, ShieldCheck, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Account = { userId: string; deviceCount: number };
 type Ceremony = { challengeId: string; options: any };
 type RecoveryFile = { version: 1; site: "hrejuh.com"; userId: string; recoveryKey: string };
+type OwnerPair = { pairingId: string; code: string; expiresAt: number; status?: string; fingerprint?: string; deviceLabel?: string };
+type ClaimPair = { pairingId: string; claimToken: string; fingerprint: string; status?: string };
 
 async function authRequest<T>(body: Record<string, unknown>): Promise<T> {
   const response = await fetch("/api/auth", {
@@ -33,10 +35,47 @@ export function ToolsAuth() {
   const [account, setAccount] = useState<Account | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [ownerPair, setOwnerPair] = useState<OwnerPair | null>(null);
+  const [claimPair, setClaimPair] = useState<ClaimPair | null>(null);
+  const [pairCode, setPairCode] = useState("");
 
   useEffect(() => {
     authRequest<Account>({ op: "session" }).then(setAccount).catch(() => setAccount(null));
   }, []);
+
+  useEffect(() => {
+    if (!ownerPair || ["consumed", "rejected", "expired"].includes(ownerPair.status ?? "")) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await authRequest<Partial<OwnerPair>>({ op: "pair-owner-status", pairingId: ownerPair.pairingId });
+        setOwnerPair(current => current ? { ...current, ...status } : null);
+      } catch { /* session message is handled on the next action */ }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [ownerPair?.pairingId, ownerPair?.status]);
+
+  useEffect(() => {
+    if (!claimPair || claimPair.status === "approved") return;
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await authRequest<{ status: string }>({ op: "pair-claim-status", pairingId: claimPair.pairingId, claimToken: claimPair.claimToken });
+        setClaimPair(current => current ? { ...current, ...status } : null);
+      } catch { /* expiry is shown by the server state */ }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [claimPair?.pairingId, claimPair?.status]);
+
+  useEffect(() => {
+    if (claimPair?.status !== "approved") return;
+    run(async () => {
+      const start = await authRequest<Ceremony>({ op: "pair-register-options", pairingId: claimPair.pairingId, claimToken: claimPair.claimToken });
+      const response = await startRegistration({ optionsJSON: start.options });
+      await authRequest({ op: "pair-register-verify", challengeId: start.challengeId, pairingId: claimPair.pairingId, claimToken: claimPair.claimToken, response });
+      setAccount(await authRequest<Account>({ op: "session" }));
+      setClaimPair(null);
+      setMessage("Device linked and signed in.");
+    });
+  }, [claimPair?.status]);
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -70,6 +109,24 @@ export function ToolsAuth() {
     await authRequest({ op: "device-verify", challengeId: start.challengeId, response });
     setAccount(await authRequest<Account>({ op: "session" }));
     setMessage("Passkey added. The browser may sync it, or keep it on the device you selected.");
+  });
+
+  const createPair = () => run(async () => {
+    setOwnerPair(await authRequest<OwnerPair>({ op: "pair-create" }));
+    setMessage("Enter this code on the new device. Nothing happens until you approve it here.");
+  });
+
+  const claimLink = () => run(async () => {
+    const result = await authRequest<ClaimPair>({ op: "pair-claim", code: pairCode, deviceLabel: `${navigator.platform || "Device"} · ${navigator.userAgent.includes("Firefox") ? "Firefox" : navigator.userAgent.includes("Edg") ? "Edge" : "Browser"}` });
+    setClaimPair({ ...result, status: "pending" });
+    setMessage("Check that the confirmation letters match, then approve on your signed-in device.");
+  });
+
+  const decidePair = (approve: boolean) => run(async () => {
+    if (!ownerPair) return;
+    await authRequest({ op: "pair-decide", pairingId: ownerPair.pairingId, approve });
+    setOwnerPair({ ...ownerPair, status: approve ? "approved" : "rejected" });
+    setMessage(approve ? "Approved. The new device will now create its own passkey." : "Request rejected.");
   });
 
   const recover = (file: File) => run(async () => {
@@ -120,8 +177,28 @@ export function ToolsAuth() {
                 <span className="mt-3 block text-xs text-muted-foreground">{account.deviceCount} registered {account.deviceCount === 1 ? "passkey" : "passkeys"}</span>
               </div>
               <button disabled={busy} onClick={addDevice} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-medium text-primary-foreground disabled:opacity-50">
-                <Link2 size={18} /> Add another device
+                <KeyRound size={18} /> Add a passkey on this device
               </button>
+              {!ownerPair ? (
+                <button disabled={busy} onClick={createPair} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 font-medium hover:border-accent disabled:opacity-50">
+                  <Link2 size={18} /> Link another device
+                </button>
+              ) : (
+                <div className="rounded-xl border border-border p-4 text-center">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Linking code · expires in 5 minutes</p>
+                  <p data-testid="pair-code" className="my-3 font-mono text-3xl font-bold tracking-widest">{ownerPair.code}</p>
+                  {ownerPair.status === "pending" && <>
+                    <p className="text-sm">{ownerPair.deviceLabel}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Confirm these letters on both devices</p>
+                    <p data-testid="owner-fingerprint" className="my-2 font-mono text-2xl font-bold tracking-[.35em]">{ownerPair.fingerprint}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button onClick={() => decidePair(false)} className="rounded-lg border border-border px-3 py-2">Reject</button>
+                      <button onClick={() => decidePair(true)} className="flex items-center justify-center gap-1 rounded-lg bg-primary px-3 py-2 text-primary-foreground"><Check size={16}/> Approve</button>
+                    </div>
+                  </>}
+                  {ownerPair.status && ownerPair.status !== "pending" && ownerPair.status !== "waiting" && <p className="text-sm capitalize">{ownerPair.status}</p>}
+                </div>
+              )}
               <button disabled={busy} onClick={signOut} className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
                 <LogOut size={16} /> Sign out
               </button>
@@ -134,6 +211,17 @@ export function ToolsAuth() {
               <button disabled={busy} onClick={register} className="w-full rounded-xl border border-border px-4 py-3 text-sm font-medium hover:border-accent disabled:opacity-50">
                 Create anonymous account
               </button>
+              {!claimPair ? <div className="rounded-xl border border-border p-3">
+                <label className="mb-2 block text-xs font-medium text-muted-foreground">Link this device using a code</label>
+                <div className="flex gap-2">
+                  <input value={pairCode} onChange={event => setPairCode(event.target.value.toUpperCase())} maxLength={9} placeholder="ABCD-EFGH" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 font-mono uppercase tracking-wider" />
+                  <button disabled={busy || pairCode.replace(/\W/g, "").length !== 8} onClick={claimLink} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50">Continue</button>
+                </div>
+              </div> : <div className="rounded-xl border border-border p-4 text-center">
+                <p className="text-xs text-muted-foreground">Confirm these letters on your signed-in device</p>
+                <p data-testid="claim-fingerprint" className="my-2 font-mono text-2xl font-bold tracking-[.35em]">{claimPair.fingerprint}</p>
+                <p className="text-sm capitalize">{claimPair.status === "pending" ? "Waiting for approval…" : claimPair.status}</p>
+              </div>}
               <button disabled={busy} onClick={() => fileInput.current?.click()} className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">
                 <Upload size={16} /> Use recovery file
               </button>

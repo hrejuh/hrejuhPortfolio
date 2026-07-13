@@ -26,7 +26,7 @@ export async function handleAuthRequest(request: Request, env: Env) {
   const convexUrl = env.CONVEX_URL ?? env.VITE_CONVEX_URL;
   if (!convexUrl) return Response.json({ error: "Authentication is not configured." }, { status: 503 });
   const client = new ConvexHttpClient(convexUrl);
-  const body = await request.json() as { op?: string; challengeId?: string; response?: unknown; recovery?: { userId?: string; recoveryKey?: string } };
+  const body = await request.json() as { op?: string; challengeId?: string; response?: unknown; recovery?: { userId?: string; recoveryKey?: string }; pairingId?: string; claimToken?: string; code?: string; deviceLabel?: string; approve?: boolean };
   const sessionToken = readCookie(request);
   let result: Record<string, unknown>;
   let session = sessionToken;
@@ -58,6 +58,31 @@ export async function handleAuthRequest(request: Request, env: Env) {
     case "device-verify":
       if (!sessionToken) throw new Error("Please sign in again.");
       result = await client.action(api.authNode.finishRegistration, { origin, challengeId: body.challengeId ?? "", response: body.response, sessionToken });
+      break;
+    case "pair-create":
+      if (!sessionToken) throw new Error("Please sign in again.");
+      result = await client.action(api.authNode.createPairing, { sessionToken });
+      break;
+    case "pair-owner-status":
+      if (!sessionToken) throw new Error("Please sign in again.");
+      result = await client.action(api.authNode.pairingOwnerStatus, { sessionToken, pairingId: body.pairingId ?? "" });
+      break;
+    case "pair-claim":
+      result = await client.action(api.authNode.claimPairing, { code: body.code ?? "", deviceLabel: body.deviceLabel ?? "New device", rateKey: request.headers.get("CF-Connecting-IP") ?? "local" });
+      break;
+    case "pair-claim-status":
+      result = await client.action(api.authNode.pairingClaimStatus, { pairingId: body.pairingId ?? "", claimToken: body.claimToken ?? "" });
+      break;
+    case "pair-decide":
+      if (!sessionToken) throw new Error("Please sign in again.");
+      result = await client.action(api.authNode.decidePairing, { sessionToken, pairingId: body.pairingId ?? "", approve: Boolean(body.approve) });
+      break;
+    case "pair-register-options":
+      result = await client.action(api.authNode.beginPairedRegistration, { origin, pairingId: body.pairingId ?? "", claimToken: body.claimToken ?? "" });
+      break;
+    case "pair-register-verify":
+      result = await client.action(api.authNode.finishPairedRegistration, { origin, challengeId: body.challengeId ?? "", pairingId: body.pairingId ?? "", claimToken: body.claimToken ?? "", response: body.response });
+      session = result.sessionToken as string;
       break;
     case "recover":
       result = await client.action(api.authNode.recoverAccount, {

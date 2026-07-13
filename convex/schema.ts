@@ -25,9 +25,10 @@ export default defineSchema({
   authChallenges: defineTable({
     challengeId: v.string(),
     challenge: v.string(),
-    purpose: v.union(v.literal("register"), v.literal("add-device"), v.literal("login")),
+    purpose: v.union(v.literal("register"), v.literal("add-device"), v.literal("pair-device"), v.literal("login")),
     userId: v.optional(v.string()),
     userHandle: v.optional(v.string()),
+    pairingId: v.optional(v.string()),
     origin: v.string(),
     expiresAt: v.number(),
   }).index("by_challenge_id", ["challengeId"]),
@@ -41,6 +42,25 @@ export default defineSchema({
   })
     .index("by_token_hash", ["tokenHash"])
     .index("by_user_id", ["userId"]),
+
+  authPairings: defineTable({
+    pairingId: v.string(),
+    userId: v.string(),
+    codeHash: v.string(),
+    claimHash: v.optional(v.string()),
+    fingerprint: v.optional(v.string()),
+    deviceLabel: v.optional(v.string()),
+    status: v.union(v.literal("waiting"), v.literal("pending"), v.literal("approved"), v.literal("consumed"), v.literal("rejected")),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_pairing_id", ["pairingId"])
+    .index("by_code_hash", ["codeHash"])
+    .index("by_user_id", ["userId"]),
+
+  authPairRateLimits: defineTable({
+    key: v.string(), count: v.number(), windowStart: v.number(),
+  }).index("by_key", ["key"]),
 
   contacts: defineTable({
     name: v.string(),

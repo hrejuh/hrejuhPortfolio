@@ -22,12 +22,14 @@ def check(signed_in: bool) -> None:
         assert dialog.is_visible()
         if signed_in:
             assert dialog.get_by_text("hj_demo1234567890").is_visible()
-            assert dialog.get_by_role("button", name="Add another device").is_visible()
+            assert dialog.get_by_role("button", name="Add a passkey on this device").is_visible()
+            assert dialog.get_by_role("button", name="Link another device").is_visible()
             assert dialog.get_by_role("button", name="Sign out").is_visible()
         else:
             assert dialog.get_by_role("button", name="Sign in with a passkey").is_visible()
             assert dialog.get_by_role("button", name="Create anonymous account").is_visible()
             assert dialog.get_by_role("button", name="Use recovery file").is_visible()
+            assert dialog.get_by_placeholder("ABCD-EFGH").is_visible()
         browser.close()
 
 

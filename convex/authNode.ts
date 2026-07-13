@@ -18,9 +18,10 @@ const CHALLENGE_MS = 5 * 60 * 1000;
 
 type Challenge = {
   challenge: string;
-  purpose: "register" | "add-device" | "login";
+  purpose: "register" | "add-device" | "pair-device" | "login";
   userId?: string;
   userHandle?: string;
+  pairingId?: string;
   origin: string;
   expiresAt: number;
 };
@@ -31,9 +32,12 @@ type StoredCredential = {
   counter: number;
   transports?: string[];
 };
+type Pairing = { pairingId: string; userId: string; claimHash?: string; fingerprint?: string; deviceLabel?: string; status: "waiting" | "pending" | "approved" | "consumed" | "rejected"; expiresAt: number };
 
 const token = (bytes = 32) => randomBytes(bytes).toString("base64url");
 const hash = (value: string) => createHash("sha256").update(value).digest("base64url");
+const PAIR_ALPHABET = "23456789ABCDEFGHJKMNPQRSTVWXYZ";
+const pairingCode = () => Array.from(randomBytes(8), byte => PAIR_ALPHABET[byte % PAIR_ALPHABET.length]).join("");
 
 function relyingParty(origin: string) {
   const url = new URL(origin);
@@ -235,5 +239,101 @@ export const logout = action({
   handler: async (ctx, { sessionToken }) => {
     await ctx.runMutation(internal.authStore.logout, { tokenHash: hash(sessionToken) });
     return { ok: true };
+  },
+});
+
+export const createPairing = action({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    const userId = await activeUser(ctx, sessionToken);
+    const code = pairingCode();
+    const pairingId = token(18);
+    const now = Date.now();
+    await ctx.runMutation(internal.authStore.createPairing, { pairingId, userId, codeHash: hash(code), now, expiresAt: now + CHALLENGE_MS });
+    return { pairingId, code: `${code.slice(0, 4)}-${code.slice(4)}`, expiresAt: now + CHALLENGE_MS };
+  },
+});
+
+export const claimPairing = action({
+  args: { code: v.string(), deviceLabel: v.string(), rateKey: v.string() },
+  handler: async (ctx, args): Promise<{ pairingId: string; fingerprint: string; expiresAt: number; claimToken: string }> => {
+    const code = args.code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length !== 8) throw new Error("Enter the 8-character linking code.");
+    const claimToken = token(32);
+    const fingerprint = hash(claimToken).replace(/[^A-Z0-9]/gi, "").slice(0, 4).toUpperCase();
+    const result: { pairingId: string; fingerprint: string; expiresAt: number } | null = await ctx.runMutation(internal.authStore.claimPairing, {
+      codeHash: hash(code), claimHash: hash(claimToken), fingerprint,
+      deviceLabel: args.deviceLabel.slice(0, 80), rateKey: `claim:${hash(args.rateKey)}`, now: Date.now(),
+    });
+    if (!result) throw new Error("Code not found or expired.");
+    return { ...result, claimToken };
+  },
+});
+
+export const pairingOwnerStatus = action({
+  args: { sessionToken: v.string(), pairingId: v.string() },
+  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string; deviceLabel?: string }> => {
+    const userId = await activeUser(ctx, args.sessionToken);
+    const pair: Pairing | null = await ctx.runQuery(internal.authStore.getPairing, { pairingId: args.pairingId });
+    if (!pair || pair.userId !== userId) throw new Error("Linking request not found.");
+    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint, deviceLabel: pair.deviceLabel };
+  },
+});
+
+export const pairingClaimStatus = action({
+  args: { pairingId: v.string(), claimToken: v.string() },
+  handler: async (ctx, args): Promise<{ status: string; fingerprint?: string }> => {
+    const pair: Pairing | null = await ctx.runQuery(internal.authStore.getPairing, { pairingId: args.pairingId });
+    if (!pair || pair.claimHash !== hash(args.claimToken)) throw new Error("Linking request not found.");
+    return { status: pair.expiresAt <= Date.now() && pair.status !== "consumed" ? "expired" : pair.status, fingerprint: pair.fingerprint };
+  },
+});
+
+export const decidePairing = action({
+  args: { sessionToken: v.string(), pairingId: v.string(), approve: v.boolean() },
+  handler: async (ctx, args) => {
+    const userId = await activeUser(ctx, args.sessionToken);
+    await ctx.runMutation(internal.authStore.setPairingStatus, { pairingId: args.pairingId, userId, status: args.approve ? "approved" : "rejected" });
+    return { ok: true };
+  },
+});
+
+export const beginPairedRegistration = action({
+  args: { origin: v.string(), pairingId: v.string(), claimToken: v.string() },
+  handler: async (ctx, args) => {
+    const { origin, rpID } = relyingParty(args.origin);
+    const pair = await ctx.runQuery(internal.authStore.getPairing, { pairingId: args.pairingId });
+    if (!pair || pair.status !== "approved" || pair.claimHash !== hash(args.claimToken) || pair.expiresAt <= Date.now()) throw new Error("This linking request has not been approved.");
+    const user = await ctx.runQuery(internal.authStore.getUser, { userId: pair.userId });
+    if (!user) throw new Error("Account not found.");
+    const credentials = await ctx.runQuery(internal.authStore.getCredentials, { userId: pair.userId });
+    const options = await generateRegistrationOptions({
+      rpName: "hrejuh tools", rpID, userID: new Uint8Array(Buffer.from(user.userHandle, "base64url")), userName: pair.userId, userDisplayName: pair.userId,
+      attestationType: "none", supportedAlgorithmIDs: [-7, -257],
+      excludeCredentials: credentials.map((credential: { credentialId: string; transports?: string[] }) => ({ id: credential.credentialId, transports: credential.transports as any })),
+      authenticatorSelection: { residentKey: "required", userVerification: "required" },
+    });
+    const challengeId = token(18);
+    await ctx.runMutation(internal.authStore.saveChallenge, { challengeId, challenge: options.challenge, purpose: "pair-device", userId: pair.userId, userHandle: user.userHandle, pairingId: pair.pairingId, origin, expiresAt: Date.now() + CHALLENGE_MS });
+    return { challengeId, options };
+  },
+});
+
+export const finishPairedRegistration = action({
+  args: { origin: v.string(), challengeId: v.string(), pairingId: v.string(), claimToken: v.string(), response: v.any() },
+  handler: async (ctx, args): Promise<{ userId: string; sessionToken: string }> => {
+    const { origin, rpID } = relyingParty(args.origin);
+    const challenge: (Challenge & { pairingId?: string }) | null = await ctx.runQuery(internal.authStore.getChallenge, { challengeId: args.challengeId });
+    if (!challenge || challenge.purpose !== "pair-device" || challenge.pairingId !== args.pairingId || challenge.expiresAt <= Date.now() || challenge.origin !== origin || !challenge.userId) throw new Error("This linking request has expired.");
+    const verification = await verifyRegistrationResponse({ response: args.response as RegistrationResponseJSON, expectedChallenge: challenge.challenge, expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true });
+    if (!verification.verified || !verification.registrationInfo) throw new Error("Passkey verification failed.");
+    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    const sessionToken = token(32); const now = Date.now();
+    await ctx.runMutation(internal.authStore.finishPairedRegistration, {
+      challengeId: args.challengeId, pairingId: args.pairingId, claimHash: hash(args.claimToken), userId: challenge.userId,
+      credentialId: credential.id, publicKey: Array.from(credential.publicKey), counter: credential.counter, transports: credential.transports,
+      deviceType: credentialDeviceType, backedUp: credentialBackedUp, tokenHash: hash(sessionToken), now, expiresAt: now + SESSION_MS,
+    });
+    return { userId: challenge.userId, sessionToken };
   },
 });
