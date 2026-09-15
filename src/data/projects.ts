@@ -102,39 +102,6 @@ Watch Together enables synchronized group viewing with invite codes, playback sy
     role: "Solo Developer",
   },
   {
-    slug: "cigarro",
-    title: "Cigarro",
-    tagline: "Premium e-commerce marketplace",
-    description:
-      "Full-featured luxury cigarette e-commerce platform with automated UPI payment verification via Gmail parsing, admin CMS with homepage builder, referral system, and blog.",
-    longDescription: `Cigarro is a production-grade e-commerce platform at cigarro.in — India's premier marketplace for premium cigarettes and tobacco products.
-
-The standout feature is the payment verification system: it connects to Gmail via OAuth2, parses bank-specific email templates (PhonePe, GPay, Paytm, BHIM), matches amounts with confidence scoring, and auto-verifies UPI payments.
-
-The admin dashboard includes product management with smart variants and SEO preview, a homepage builder with drag-and-drop section ordering, blog CMS with moderation, order management with payment verification workflows, and a discount engine.
-
-The checkout is a multi-step flow with adaptive desktop/mobile layouts, saved addresses with pincode lookup, and UPI QR code generation. The referral system includes deep linking, share APIs, leaderboard, and reward tracking.`,
-    tier: "flagship",
-    year: 2024,
-    status: "live",
-    ownership: "personal-ip",
-    technologies: ["React 18", "Vite", "Supabase", "Cloudflare Workers", "Hono", "Radix UI", "PWA"],
-    liveUrl: "https://cigarro.in",
-    accentColor: "#059669",
-    highlights: [
-      "Live at cigarro.in — India's premier marketplace for premium cigarettes",
-      "Automated UPI payment verification via Gmail OAuth2 email parsing",
-      "Admin CMS with drag-and-drop homepage builder and blog system",
-      "Referral system with deep linking, leaderboard, and reward tracking",
-    ],
-    narrative: {
-      problem: "Indian e-commerce sellers using UPI need manual payment verification — checking bank emails one by one, matching amounts, updating order statuses by hand.",
-      solution: "An automated system that connects to Gmail via OAuth2, parses bank-specific email templates (PhonePe, GPay, Paytm, BHIM), matches amounts with confidence scoring, and auto-verifies payments.",
-      insight: "Sometimes the most valuable feature isn't the storefront — it's the invisible infrastructure that saves the owner 2 hours of manual verification every day.",
-    },
-    role: "Solo Developer",
-  },
-  {
     slug: "dosricke-ventures",
     title: "DosRicke Ventures",
     tagline: "Multi-product SaaS company platform",

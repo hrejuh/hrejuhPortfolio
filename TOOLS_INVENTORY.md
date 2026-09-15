@@ -76,4 +76,4 @@ Open any subfolder's `index.html` in a browser — no build step.
 
 ## Excluded (full products, not utilities)
 
-Qrave, ERP/Coreva, Vela, Cigarro, Onsite, Dukan, DosRickeVentures, Library Management, Taskmaster-AI, Citadel (auth-gated admin).
+Qrave, ERP/Coreva, Vela, Onsite, Dukan, DosRickeVentures, Library Management, Taskmaster-AI, Citadel (auth-gated admin).

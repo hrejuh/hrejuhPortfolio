@@ -20,11 +20,11 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Software Projects** | 18 |
-| **Total Lines of Code (estimated)** | ~140,000+ |
-| **Total Database Tables** | 160+ |
-| **Total API Endpoints** | 200+ |
-| **Total React Components** | 600+ |
+| **Total Software Projects** | 17 |
+| **Total Lines of Code (estimated)** | ~100,000+ |
+| **Total Database Tables** | 115+ |
+| **Total API Endpoints** | 190+ |
+| **Total React Components** | 330+ |
 | **Design/Business Projects** | 12+ |
 | **Languages** | TypeScript, Python, JavaScript, R |
 | **Primary Stack** | React/Next.js + Convex/Supabase + Tailwind |
@@ -193,45 +193,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 4. Cigarro - Premium E-Commerce Marketplace
-
-**Full-featured luxury cigarette e-commerce** (cigarro.in) with automated UPI payment verification and comprehensive admin CMS.
-
-| Attribute | Detail |
-|-----------|--------|
-| **Location** | `P:/Figma Cigarette` |
-| **Stack** | React 18, TypeScript, Vite 6, Supabase, Cloudflare Workers/Hono, Radix UI, PWA |
-| **Status** | Production-Grade |
-| **Estimated LOC** | ~35,000 - 45,000 |
-| **Source Files** | 271 TypeScript/TSX |
-
-#### Scale & Scope
-- **58+ total routes** (33 customer + 25 admin)
-- **11 Cloudflare serverless functions**
-- **41 database tables + 3 views** (~700+ columns)
-
-#### Payment Verification System
-- Gmail OAuth2 automated email scanning for UPI confirmations
-- Bank-specific parsing: PhonePe, Google Pay, Paytm, BHIM, generic UPI
-- Confidence scoring with amount tolerance, timestamp validation, VPA matching
-- 5-minute polling with comprehensive logging
-
-#### Checkout Flow (600+ lines)
-- 3-step: Shipping > Review > Payment (UPI QR generation)
-- Adaptive desktop/mobile layouts, saved addresses with pincode lookup
-
-#### Admin Dashboard (25+ Pages)
-- Product management with smart variants, SEO preview, bulk import/export
-- Homepage Builder: Hero slides, featured products, category showcases (drag-and-drop)
-- Blog CMS, order management, discount engine, customer management, asset manager, analytics
-
-#### Referral System: Stats, leaderboard, deep linking, share APIs, reward tracking
-#### Cart: Guest/authenticated sync, variant/combo support (566 lines)
-#### SEO: Dynamic sitemap, bot-aware SSR middleware, PWA, structured data
-
----
-
-### 5. DosRicke Ventures - SaaS Company Platform (Monorepo)
+### 4. DosRicke Ventures - SaaS Company Platform (Monorepo)
 
 **The parent company website** for a registered Bangalore-based SaaS company.
 
@@ -255,7 +217,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 6. LibraryManagement - Institutional Library System
+### 5. LibraryManagement - Institutional Library System
 
 | Attribute | Detail |
 |-----------|--------|
@@ -269,7 +231,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 7. E-commerce (Supabase + Razorpay)
+### 6. E-commerce (Supabase + Razorpay)
 
 | **Stack** | Next.js 13, Supabase, Razorpay, Docker | **LOC** | ~6,000-8,000 | **Files** | 146 |
 
@@ -279,7 +241,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 8. HiyoRi E-commerce (GraphQL + Stripe)
+### 7. HiyoRi E-commerce (GraphQL + Stripe)
 
 | **Stack** | Next.js 14, Supabase, Stripe, GraphQL, Drizzle ORM, Redux | **LOC** | ~10,000+ | **Files** | 252 |
 
@@ -288,7 +250,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 9. Taskmaster-AI (Python AI Assistant)
+### 8. Taskmaster-AI (Python AI Assistant)
 
 | **Stack** | FastAPI, PostgreSQL, Redis, OpenAI GPT-4, Docker, Prometheus |
 
@@ -297,7 +259,7 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 
 ---
 
-### 10. Velocita (Fintech SaaS Demo)
+### 9. Velocita (Fintech SaaS Demo)
 
 | **Stack** | Next.js 16 + React 19 (frontend), Node.js + CCXT + ethers.js (backends) |
 
@@ -357,17 +319,17 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 | **TypeScript** | Expert | 12+ projects |
 | **React / Next.js** | Expert | 12+ projects |
 | **Convex** | Expert | Qrave, ERP, DosRicke, Library |
-| **Supabase** | Expert | Cigarro, E-commerce x3 |
+| **Supabase** | Expert | E-commerce x3 |
 | **Tailwind CSS** | Expert | All frontend |
 | **Python** | Strong | 4 projects |
 | **Docker** | Strong | 2 projects |
-| **Cloudflare** | Strong | 4 projects |
+| **Cloudflare** | Strong | 3 projects |
 
 ### Specialized Skills
 
 | Skill | Evidence |
 |-------|---------|
-| **Payment Integration** | Cashfree, Razorpay, Stripe, UPI email verification (4 gateways) |
+| **Payment Integration** | Cashfree, Razorpay, Stripe (3 gateways) |
 | **Real-time Systems** | Convex subscriptions, WebSocket sync, live GPS tracking |
 | **Offline-First / PWA** | Dexie IndexedDB, Service Workers, version-based cache invalidation |
 | **Thermal Printing** | ESC/POS, Bluetooth, receipt/label template editors |
@@ -392,7 +354,6 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 | Qrave | 230+ | 30,000 | 20+ | 77 | 87 |
 | Taj ERP | 224 | 37,000 | 50+ | 57 files | 86+ |
 | Vela | 195 | 16,500 | 27 | 39 | 56+ |
-| Cigarro | 271 | 40,000 | 44 | 11 | 271 files |
 | DosRicke | 49 | 4,700 | 8 | 2 | 7 |
 | Library | 123+ | 10,000 | 10 | 60+ | 62 |
 | E-commerce 1 | 146 | 7,000 | 10+ | 10 | 45+ |
@@ -400,14 +361,14 @@ These are production-grade, portfolio-highlight projects demonstrating deep full
 | Taskmaster-AI | 15+ | 2,000 | 5+ | 3 | - |
 | Velocita | 20+ | 1,500 | - | - | 5 |
 | Others | 45+ | 5,000 | - | 5+ | 20+ |
-| **TOTAL** | **~1,570+** | **~140,000+** | **~160+** | **~200+** | **~600+** |
+| **TOTAL** | **~1,299+** | **~100,000+** | **~115+** | **~190+** | **~330+** |
 
 ### Domain Expertise
 1. **Restaurant/Food Tech** - Qrave, Taj ERP, Eato Foods
-2. **E-commerce** - Cigarro, E-commerce 1/2/3 (4 implementations)
+2. **E-commerce** - E-commerce 1/2/3 (3 implementations)
 3. **Enterprise Software** - ERP with POS, supply chain, invoicing, payroll
 4. **Media/Entertainment** - Vela, StreamHub, Funtainment, Watchalore
-5. **FinTech** - Velocita, 4 payment gateway integrations
+5. **FinTech** - Velocita, 3 payment gateway integrations
 6. **Community/Institutional** - LibraryManagement, St Broseph, Trustea
 7. **Consumer Products** - Indi Mums, K-Khane
 8. **Consulting/Agency** - DosRicke Consultancy, Startup Indian
